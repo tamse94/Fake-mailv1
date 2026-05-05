@@ -1,146 +1,134 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import config from '../config.json';
 
 export default function Home() {
   const [email, setEmail] = useState('');
   const [inbox, setInbox] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [copyText, setCopyText] = useState('Salin');
+  const [copyStatus, setCopyStatus] = useState('Copy');
   const [showCustom, setShowCustom] = useState(false);
   const [customInput, setCustomInput] = useState('');
 
-  const domain = 'sekphim-tv.eu.org';
-
-  // 1. Fungsi buat email acak
   const generateRandom = () => {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < 8; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    const newEmail = `${result}@${domain}`;
-    saveEmail(newEmail);
+    const random = Math.random().toString(36).substring(2, 10);
+    const newEmail = `${random}@${config.domain}`;
+    saveToStorage(newEmail);
   };
 
-  // 2. Fungsi simpan email & reset inbox
-  const saveEmail = (newEmail) => {
-    localStorage.setItem('saved_fake_email', newEmail);
+  const saveToStorage = (newEmail) => {
+    localStorage.setItem('saved_email', newEmail);
     setEmail(newEmail);
-    setInbox([]); // Bersihkan inbox setiap ganti alamat
+    setInbox([]);
     setShowCustom(false);
   };
 
-  // 3. Fungsi Copy (Tanpa Alert)
   const handleCopy = () => {
     navigator.clipboard.writeText(email);
-    setCopyText('Tersalin!');
-    setTimeout(() => setCopyText('Salin'), 2000);
+    setCopyStatus('Tersalin!');
+    setTimeout(() => setCopyStatus('Copy'), 2000);
   };
 
-  // 4. Fungsi Ambil Inbox
   const fetchInbox = async () => {
     if (!email) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/get-emails?recipient=${email}`);
+      const res = await fetch(`/api/get-emails?address=${email}`);
       const data = await res.json();
       if (Array.isArray(data)) setInbox(data);
     } catch (err) {
-      console.error("Gagal refresh");
+      console.error(err);
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    const saved = localStorage.getItem('saved_fake_email');
+    const saved = localStorage.getItem('saved_email');
     if (saved) setEmail(saved); else generateRandom();
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(fetchInbox, 8000);
+    if (!email) return;
+    const interval = setInterval(fetchInbox, 10000);
     return () => clearInterval(interval);
   }, [email]);
 
   return (
-    <div className="main-app">
+    <div className="content-wrapper">
       <Head>
-        <title>Fake Mail Pro</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
+        <title>{config.sitename}</title>
       </Head>
 
-      <div className="card-container">
-        <h2 className="title">📧 Fake Mail Pro</h2>
-        
-        <div className="address-box">
-          <div className="email-display">{email}</div>
-          
-          <div className="button-grid">
-            <button className="btn btn-copy" onClick={handleCopy}>{copyText}</button>
-            <button className="btn btn-action" onClick={generateRandom}>Auto</button>
-            <button className="btn btn-action" onClick={() => setShowCustom(!showCustom)}>Custom</button>
-          </div>
-        </div>
+      <div className="container trim-box">
+        <div className="text-center" style={{ marginTop: '30px' }}>
+          <h2 style={{ fontWeight: '700', marginBottom: '25px' }}>
+            <span className="material-icons" style={{ verticalAlign: 'middle', marginRight: '5px' }}>mail</span>
+            {config.sitename}
+          </h2>
 
-        {showCustom && (
-          <div className="custom-form">
-            <input 
-              type="text" 
-              placeholder="Masukkan nama..." 
-              value={customInput}
-              onChange={(e) => setCustomInput(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
-            />
-            <button onClick={() => saveEmail(`${customInput}@${domain}`)}>Simpan</button>
-          </div>
-        )}
-
-        <div className="inbox-card">
-          <div className="inbox-header">
-            <span>Inbox</span>
-            <button onClick={fetchInbox} className="btn-refresh" disabled={loading}>
-              {loading ? '...' : 'Refresh'}
-            </button>
+          {/* Bagian Email Display */}
+          <div className="well" style={{ backgroundColor: '#fff', border: '1px solid #ddd' }}>
+            <p className="text-muted small">Alamat Email Sementara:</p>
+            <h4 style={{ wordBreak: 'break-all', fontWeight: '700', color: '#337ab7' }}>{email}</h4>
+            
+            <div className="btn-group btn-group-justified" style={{ marginTop: '15px' }}>
+              <a href="#" className="btn btn-primary" onClick={(e) => { e.preventDefault(); handleCopy(); }}>
+                <span className="material-icons" style={{ fontSize: '16px', verticalAlign: 'middle' }}>content_copy</span> {copyStatus}
+              </a>
+              <a href="#" className="btn btn-default" onClick={(e) => { e.preventDefault(); generateRandom(); }}>
+                <span className="material-icons" style={{ fontSize: '16px', verticalAlign: 'middle' }}>autorenew</span> Auto
+              </a>
+              <a href="#" className="btn btn-default" onClick={(e) => { e.preventDefault(); setShowCustom(!showCustom); }}>
+                <span className="material-icons" style={{ fontSize: '16px', verticalAlign: 'middle' }}>edit</span> Custom
+              </a>
+            </div>
           </div>
 
-          <div className="inbox-content">
-            {inbox.length === 0 ? (
-              <div className="empty-state">Menunggu email masuk...</div>
-            ) : (
-              inbox.map((msg) => (
-                <div key={msg.id} className="email-item">
-                  <div className="sender">Dari: {msg.sender}</div>
-                  <div className="subject">{msg.subject}</div>
-                  <div className="body-preview">{msg.body}</div>
+          {/* Form Custom */}
+          {showCustom && (
+            <div className="well" style={{ padding: '10px' }}>
+              <div className="input-group">
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="nama-email" 
+                  value={customInput}
+                  onChange={(e) => setCustomInput(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                />
+                <span className="input-group-btn">
+                  <button className="btn btn-success" onClick={() => saveToStorage(`${customInput}@${config.domain}`)}>OK</button>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Inbox Area */}
+          <div className="panel panel-default text-left">
+            <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <b>Kotak Masuk</b>
+              <button className="btn btn-xs btn-link" onClick={fetchInbox} disabled={loading}>
+                <span className="material-icons" style={{ fontSize: '16px', verticalAlign: 'middle' }}>refresh</span> {loading ? 'Cek...' : 'Refresh'}
+              </button>
+            </div>
+            <div className="list-group">
+              {inbox.length === 0 ? (
+                <div className="list-group-item text-center text-muted" style={{ padding: '40px' }}>
+                  Belum ada email masuk...
                 </div>
-              ))
-            )}
+              ) : (
+                inbox.map((msg, index) => (
+                  <div key={index} className="list-group-item">
+                    <p className="small text-primary" style={{ marginBottom: '5px' }}>Dari: {msg.sender}</p>
+                    <h5 className="list-group-item-heading" style={{ fontWeight: '700' }}>{msg.subject}</h5>
+                    <div style={{ marginTop: '10px', fontSize: '13px', whiteSpace: 'pre-wrap' }}>{msg.body}</div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
+
         </div>
       </div>
-
-      <style jsx global>{`
-        body { background: #f0f2f5; margin: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
-        .main-app { padding: 15px; display: flex; justify-content: center; }
-        .card-container { width: 100%; max-width: 450px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .title { text-align: center; margin: 0 0 20px 0; font-size: 20px; }
-        .address-box { background: #f8f9fa; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; text-align: center; }
-        .email-display { font-family: monospace; font-size: 16px; font-weight: bold; color: #0070f3; margin-bottom: 15px; word-break: break-all; }
-        .button-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-        .btn { border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; transition: 0.2s; }
-        .btn-copy { background: #0070f3; color: white; }
-        .btn-action { background: #e1e4e8; color: #333; }
-        .btn:active { transform: scale(0.95); }
-        .custom-form { margin-top: 15px; display: flex; gap: 5px; }
-        .custom-form input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
-        .custom-form button { background: #28a745; color: white; border: none; padding: 0 15px; border-radius: 6px; }
-        .inbox-card { margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px; }
-        .inbox-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; }
-        .btn-refresh { border: none; background: none; color: #0070f3; cursor: pointer; }
-        .email-item { padding: 12px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 10px; }
-        .sender { font-size: 11px; color: #666; }
-        .subject { font-size: 14px; font-weight: bold; margin: 4px 0; }
-        .body-preview { font-size: 13px; color: #444; white-space: pre-wrap; overflow-wrap: break-word; }
-        .empty-state { text-align: center; padding: 30px; color: #999; font-size: 13px; }
-      `}</style>
     </div>
   );
 }
