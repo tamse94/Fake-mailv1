@@ -2,25 +2,6 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import config from '../config.json';
 
-export default function Home() {
-  const [email, setEmail] = useState('');
-  const [inbox, setInbox] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [copyStatus, setCopyStatus] = useState('Copy');
-  const [showCustom, setShowCustom] = useState(false);
-  const [customInput, setCustomInput] = useState('');
-
-  const generateRandom = () => {
-    const random = Math.random().toString(36).substring(2, 10);
-    const newEmail = `${random}@${config.domain}`;
-    saveToStorage(newEmail);
-  };
-
-  const saveToStorage = (newEmail) => {
-import { useState, useEffect } from 'react';
-import Head from 'next/head';
-import config from '../config.json';
-
 // --- FUNGSI DECODER CANGGIH DARI KAMU ---
 const processEmailContent = (rawText) => {
   if (!rawText) return "<html><body><p style='color:#999; text-align:center;'>Tidak ada konten pesan.</p></body></html>";
@@ -50,7 +31,6 @@ const processEmailContent = (rawText) => {
   }
   content = content.replace(/--[a-zA-Z0-9._-]+--\s*$/, '');
   
-  // Menambahkan styling dasar agar tampilan responsif di HP
   const baseTag = '<base target="_blank"><style>body{margin:0; padding:10px; font-family:"Open Sans",Arial,sans-serif; font-size:14px; word-wrap:break-word;} img{max-width:100%; height:auto;} table{max-width:100%;}</style>';
   
   if (content.includes('<head>')) {
@@ -70,14 +50,12 @@ export default function Home() {
   const [showCustom, setShowCustom] = useState(false);
   const [customInput, setCustomInput] = useState('');
 
-  // Buat Email Acak
   const generateRandom = () => {
     const random = Math.random().toString(36).substring(2, 10);
     const newEmail = `${random}@${config.domain}`;
     saveToStorage(newEmail);
   };
 
-  // Simpan ke memori agar anti-hilang pas di-refresh
   const saveToStorage = (newEmail) => {
     localStorage.setItem('saved_email', newEmail);
     setEmail(newEmail);
@@ -86,14 +64,12 @@ export default function Home() {
     setCustomInput('');
   };
 
-  // Fungsi Copy Teks (Tanpa Alert)
   const handleCopy = () => {
     navigator.clipboard.writeText(email);
     setCopyStatus('Tersalin!');
     setTimeout(() => setCopyStatus('Salin'), 2000);
   };
 
-  // Ambil Data dari API
   const fetchInbox = async () => {
     if (!email) return;
     setLoading(true);
@@ -112,17 +88,15 @@ export default function Home() {
     if (saved) setEmail(saved); else generateRandom();
   }, []);
 
-  // Auto-refresh setiap 10 detik
   useEffect(() => {
     if (!email) return;
     const interval = setInterval(fetchInbox, 10000);
     return () => clearInterval(interval);
   }, [email]);
 
-  // CSS Khusus untuk panel garis tipis samping
   const panelStyle = {
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-    borderLeft: '4px solid #337ab7', // GARIS BIRU TIPIS DI KIRI
+    borderLeft: '4px solid #337ab7',
     borderRadius: '6px'
   };
 
@@ -140,7 +114,6 @@ export default function Home() {
           </h2>
         </div>
 
-        {/* BOX EMAIL CONTROL (Garis Samping) */}
         <div className="panel panel-default" style={panelStyle}>
           <div className="panel-body text-center">
             <p className="text-muted small" style={{ marginBottom: '5px' }}>Alamat Email Sementara Anda:</p>
@@ -148,7 +121,6 @@ export default function Home() {
               {email || 'Memuat...'}
             </h3>
             
-            {/* Grup Tombol Aksi */}
             <div className="btn-group btn-group-justified">
               <a href="#" className="btn btn-primary" onClick={(e) => { e.preventDefault(); handleCopy(); }}>
                 <span className="material-icons" style={{ fontSize: '16px', verticalAlign: 'middle' }}>content_copy</span> {copyStatus}
@@ -161,7 +133,6 @@ export default function Home() {
               </a>
             </div>
 
-            {/* Input Custom yang Muncul Saat Diklik */}
             {showCustom && (
               <div className="input-group" style={{ marginTop: '15px' }}>
                 <input 
@@ -181,7 +152,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* BOX INBOX (Garis Samping) */}
         <div className="panel panel-default" style={{ ...panelStyle, borderLeft: '4px solid #5cb85c' }}>
           <div className="panel-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff' }}>
             <b style={{ fontSize: '16px' }}>
@@ -210,7 +180,6 @@ export default function Home() {
                     {msg.subject}
                   </h4>
                   
-                  {/* IFRAME: Untuk merender HTML Email agar bersih dan tidak merusak layout */}
                   <iframe 
                     srcDoc={processEmailContent(msg.body)}
                     sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
