@@ -106,10 +106,29 @@ export default function Home() {
 
   return (
     <div className="flat-ui-container">
-      <Head>
-        <title>{config.sitename}</title>
+            <Head>
+        {/* Judul & Viewport */}
+        <title>{config.sitename} - TempMail & Fake Mail Generator</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
+        
+        {/* Meta Tag Dasar (Untuk Google Search) */}
+        <meta name="description" content={`Gunakan ${config.sitename} untuk membuat email sementara (fake mail) gratis. Lindungi email utama Anda dari spam dengan email sekali pakai yang aman.`} />
+        <meta name="keywords" content="fake mail, temp mail, email sementara, generator email, anti spam, 10 minute mail" />
+
+        {/* Open Graph / Facebook / WhatsApp (Biar kalau di-share link-nya muncul gambar & deskripsi) */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={`https://${config.domain}`} />
+        <meta property="og:title" content={`${config.sitename} - TempMail Generator`} />
+        <meta property="og:description" content="Buat email sementara dengan sekali klik. Otomatis terhapus, 100% aman dari spam!" />
+        <meta property="og:image" content={`https://${config.domain}/og.jpg`} />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${config.sitename} - TempMail Generator`} />
+        <meta name="twitter:description" content="Buat email sementara dengan sekali klik. Bebas spam." />
+        <meta name="twitter:image" content={`https://${config.domain}/og.jpg`} />
       </Head>
+
 
       <div className="header-area">
         <h2 className="brand-title">
