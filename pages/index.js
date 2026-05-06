@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import config from '../config.json';
 
-// --- DECODER ANTI-MOJIBAKE (Perbaikan Emoji & Karakter Aneh) ---
+// --- DECODER ANTI-MOJIBAKE (Tetap dipertahankan karena sudah sempurna) ---
 const processEmailContent = (rawText) => {
   if (!rawText) return "<html><body><p style='color:#999; text-align:center; padding:20px;'>Isi pesan kosong.</p></body></html>";
   let content = rawText;
@@ -11,7 +11,6 @@ const processEmailContent = (rawText) => {
     content = content.replace(/=\r?\n/g, '');
     content = content.replace(/=([0-9A-F]{2})/gi, '%$1');
     content = decodeURIComponent(content);
-    // Trik rahasia untuk memperbaiki emoji UTF-8 yang rusak (seperti ðŸ³)
     try { content = decodeURIComponent(escape(content)); } catch(e) {}
   } catch (e) {
     try { content = unescape(content); } catch(ex){}
@@ -31,7 +30,6 @@ const processEmailContent = (rawText) => {
 
   content = content.replace(/--[a-zA-Z0-9._-]+--\s*$/g, '');
   
-  // CSS iFrame: Bersih, font modern, tanpa margin berlebih
   const baseTag = '<base target="_blank"><style>body{margin:0; padding:10px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size:14px; color:#111; line-height:1.5; word-wrap:break-word;} img{max-width:100%; height:auto;} table{max-width:100% !important;} a{color:#0066cc;}</style>';
   
   if (content.includes('<head>')) {
@@ -50,6 +48,9 @@ export default function Home() {
   const [copyStatus, setCopyStatus] = useState('Salin');
   const [showCustom, setShowCustom] = useState(false);
   const [customInput, setCustomInput] = useState('');
+  
+  // State baru untuk melacak pesan mana yang sedang DIBUKA
+  const [expandedEmailId, setExpandedEmailId] = useState(null);
 
   const generateRandom = () => {
     const random = Math.random().toString(36).substring(2, 10);
@@ -63,6 +64,7 @@ export default function Home() {
     setInbox([]); 
     setShowCustom(false);
     setCustomInput('');
+    setExpandedEmailId(null); // Tutup semua pesan yang terbuka saat ganti email
   };
 
   const handleCopy = () => {
@@ -80,6 +82,15 @@ export default function Home() {
       if (Array.isArray(data)) setInbox(data);
     } catch (err) {}
     if (!isSilent) setLoading(false);
+  };
+
+  // Fungsi untuk Buka/Tutup Pesan
+  const toggleEmail = (id) => {
+    if (expandedEmailId === id) {
+      setExpandedEmailId(null); // Kalau diklik lagi, tutup
+    } else {
+      setExpandedEmailId(id); // Buka pesan yang diklik
+    }
   };
 
   useEffect(() => {
@@ -100,7 +111,6 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
       </Head>
 
-      {/* HEADER UTAMA */}
       <div className="header-area">
         <h2 className="brand-title">
           <span className="material-icons brand-icon">mail</span>
@@ -108,12 +118,10 @@ export default function Home() {
         </h2>
       </div>
 
-      {/* AREA EMAIL (Tanpa Box/Border) */}
       <div className="email-section">
         <div className="email-label">ALAMAT EMAIL ANDA</div>
         <div className="email-display">{email || 'Menyiapkan...'}</div>
         
-        {/* Tombol Sejajar (Pasti rapi di HP) */}
         <div className="action-grid">
           <button className="btn-flat btn-primary" onClick={handleCopy}>
             <span className="material-icons">content_copy</span> {copyStatus}
@@ -126,7 +134,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Input Custom Flat */}
         {showCustom && (
           <div className="custom-input-area">
             <input 
@@ -143,10 +150,8 @@ export default function Home() {
         )}
       </div>
 
-      {/* PEMBATAS TIPIS */}
       <div className="divider"></div>
 
-      {/* AREA INBOX */}
       <div className="inbox-section">
         <div className="inbox-header">
           <div className="inbox-title">
@@ -166,27 +171,46 @@ export default function Home() {
               Menunggu email masuk...
             </div>
           ) : (
-            inbox.map((msg) => (
-              <div key={msg.id || msg.created_at} className="email-item">
-                <div className="email-sender">
-                  <span className="material-icons" style={{ fontSize: '16px', color: '#999' }}>account_circle</span>
-                  {msg.sender}
+            inbox.map((msg) => {
+              // Cek apakah pesan ini sedang dibuka atau tidak
+              const isExpanded = expandedEmailId === (msg.id || msg.created_at);
+              
+              return (
+                <div key={msg.id || msg.created_at} className={`email-item ${isExpanded ? 'expanded' : ''}`}>
+                  {/* Bagian Header yang BISA DIKLIK */}
+                  <div className="email-header-clickable" onClick={() => toggleEmail(msg.id || msg.created_at)}>
+                    <div className="email-info">
+                      <div className="email-sender">
+                        <span className="material-icons">account_circle</span>
+                        {msg.sender}
+                      </div>
+                      <div className="email-subject">{msg.subject}</div>
+                    </div>
+                    <div className="email-toggle-icon">
+                      <span className="material-icons">
+                        {isExpanded ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Bagian Isi Pesan (Hanya muncul kalau diklik) */}
+                  {isExpanded && (
+                    <div className="email-body-container">
+                      <iframe 
+                        title={`Email from ${msg.sender}`}
+                        srcDoc={processEmailContent(msg.body)}
+                        sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                        className="email-iframe"
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="email-subject">{msg.subject}</div>
-                
-                <iframe 
-                  title={`Email from ${msg.sender}`}
-                  srcDoc={processEmailContent(msg.body)}
-                  sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                  className="email-iframe"
-                />
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
 
-      {/* CSS CUSTOM FLAT & TIGHT LAYOUT */}
       <style jsx global>{`
         body { 
           margin: 0; 
@@ -196,13 +220,7 @@ export default function Home() {
           color: #222;
         }
         
-        .flat-ui-container { 
-          max-width: 600px; 
-          margin: 0 auto; 
-          /* Hilangkan padding samping di layar kecil agar mepet/dempet */
-          padding: 0; 
-        }
-        
+        .flat-ui-container { max-width: 600px; margin: 0 auto; padding: 0; }
         .header-area { padding: 20px 15px 10px; text-align: center; }
         .brand-title { margin: 0; font-size: 24px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .brand-icon { font-size: 28px; color: #111; }
@@ -212,21 +230,12 @@ export default function Home() {
         .email-display { font-size: 22px; font-weight: 700; color: #111; word-break: break-all; margin-bottom: 20px; }
         
         .action-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-        .btn-flat { 
-          border: none; 
-          padding: 10px 0; 
-          font-size: 13px; 
-          font-weight: 600; 
-          border-radius: 6px; 
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
-          gap: 5px; 
-          cursor: pointer;
-        }
+        .btn-flat { border: none; padding: 10px 0; font-size: 13px; font-weight: 600; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 5px; cursor: pointer; transition: background 0.2s; }
         .btn-flat .material-icons { font-size: 16px; }
         .btn-primary { background-color: #111; color: #fff; }
+        .btn-primary:active { background-color: #333; }
         .btn-secondary { background-color: #f2f2f2; color: #333; }
+        .btn-secondary:active { background-color: #e0e0e0; }
         .btn-success { background-color: #28a745; color: #fff; padding: 10px 15px; }
         
         .custom-input-area { display: flex; gap: 8px; margin-top: 15px; }
@@ -236,20 +245,32 @@ export default function Home() {
         .divider { height: 8px; background-color: #f8f9fa; border-top: 1px solid #f0f0f0; border-bottom: 1px solid #f0f0f0; }
         
         .inbox-section { padding: 0; }
-        .inbox-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
+        .inbox-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; position: sticky; top: 0; background: #fff; z-index: 10; }
         .inbox-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
         .inbox-badge { background: #111; color: #fff; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 12px; }
         
         .btn-refresh { background: transparent; border: 1px solid #ddd; border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: 600; display: flex; align-items: center; cursor: pointer; color: #444; }
+        .btn-refresh:active { background: #f0f0f0; }
         
         .empty-msg { text-align: center; padding: 50px 20px; color: #999; font-size: 14px; }
         .empty-icon { display: block; font-size: 40px; color: #ddd; margin-bottom: 10px; }
         
-        .email-item { padding: 20px 15px; border-bottom: 1px solid #eee; }
-        .email-sender { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #666; margin-bottom: 8px; }
-        .email-subject { font-size: 18px; font-weight: 700; color: #111; margin-bottom: 15px; }
+        /* DESAIN LIST EMAIL BISA DIKLIK */
+        .email-item { border-bottom: 1px solid #eee; transition: background 0.2s; }
+        .email-item.expanded { background-color: #fafafa; }
         
-        .email-iframe { width: 100%; height: 350px; border: none; background: #fafafa; border-radius: 6px; }
+        .email-header-clickable { display: flex; justify-content: space-between; align-items: center; padding: 15px; cursor: pointer; user-select: none; }
+        .email-header-clickable:active { background-color: #f0f0f0; }
+        
+        .email-info { flex: 1; overflow: hidden; }
+        .email-sender { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; margin-bottom: 4px; }
+        .email-sender .material-icons { font-size: 14px; color: #aaa; }
+        .email-subject { font-size: 15px; font-weight: 700; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 15px; }
+        
+        .email-toggle-icon { color: #888; display: flex; align-items: center; }
+        
+        .email-body-container { padding: 0 15px 20px 15px; }
+        .email-iframe { width: 100%; height: 400px; border: 1px solid #e0e0e0; background: #fff; border-radius: 6px; display: block; }
       `}</style>
     </div>
   );
